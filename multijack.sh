@@ -1,113 +1,66 @@
 #!/bin/bash
 
 # TODO:
-# -- Identify if VLC is installed, if not display error message
-# -- Identify if wmctrl is installed, if not display error message
+# -- Identify if VLC is installed !? Display Error Message
+# -- Identify if wmctrl is installed !? Display Error Message
+# -- Identify if xdpyinfo is installed !? Display Error Message 
+# -- Record which videos are played in a log file. Include a timestamp and information on which arguments that MultiJack was passed
 
-# Establish file location and critical threshold for refreshing POOL
-file_location='/home/oem/Documents'
-file_threshold=10
-# Plays files from Document
+file_location='/home/oem/Videos' ## $file_location is the directory that MultiJack will use to create and maintain it's Directory Pool. By default it is set to the default location for videos in Linux Mint
+file_threshold=10 ## $file_threshold is the minimum number of files in the Directory Pool. If the number of files in the Directory Pool drops below this number, the Directory Pool will be refreshed.
 
 case $1 in
 
     "--help")
-    echo --refresh --prepare --restore
+    echo --refresh 1 2 3 4
     exit 1
         ;;  
 
-    "--refresh")
+    "--refresh") ## This option will delete the Directory Pool from the filesystem. When MultiJack will then recreate the Directory Pool the next time it is run with a standard argument (1-4)
     rm -r POOL
     exit 1 
         ;;    
-
-    # Logic for removing non-standard characters from filenames. All non-standard characters are converted to underscores
-    # Original filenames are stored in a hidden subdirectory and can be recovered using the --restore command
-    # UPDATE 04/28 This code doesn't appear to be necessary anymore as we have encapsulated all variable names in quotes
-    "--prepare")
-    mkdir "$file_location/.original_names"
-    let string_length="${#file_location} + 2"
-    for file_name in "$file_location/*"; do
-        old_name=`echo "$file_name"| cut -c $string_length-`
-        old_name="${old_name// /_}"
-        new_name=`echo $old_name | sed -e 's/[^A-Za-z 0-9._-]/_/g'`
-        echo $new_name >> new_name_logs
-        touch $file_location/.original_names/$new_name
-        echo "$file_name"> $file_location/.original_names/$new_name
-        mv "$file_name" "$file_location/$new_name"
-    done
-    exit 1
-        ;;
-    
-    # logic for restoring filenames that were altered by the --prepare command
-    # UPDATE 04/28 This doesn't appear to be necessary because filename handling was fixed
-    "--restore")
-    for file_name in $file_location/.original_names/*; do
-        temp_filename=$( cat $file_location/.original_names/$file_name )
-        mv $file_location/$temp_filename $file_location/$file_name
-    done
-    exit 1
-        ;;
 
     *) 
         ;;
 esac
 
-# Close empty VLC windows
-while [ -n "$(wmctrl -l | grep 'N/A VLC media player' 2>&1)" ]; do
-    wmctrl -i -c $(wmctrl -p -G -l | grep 'N/A VLC media player' | cut -c1-10)
-done
-
-# Calculate Screen Dimensions
-x_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f1 -dx)
-y_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f2 -dx)
-let x_window="x_screen/2 - 1"
+x_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f1 -dx) ## These 2 lines set $x_screen and $y_screen equal to the corresponding pixel dimensions of the screen resolution.'
+y_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f2 -dx) ## ' 
+let x_window="x_screen/2 - 1" ## These 4 lines are used to calculate the size and screen-placement for the active VLC windows launched by MultiJack. The constants used are set for Linux Mint, and will ensure proper placement in Mint 19.1
 let y_window="y_screen/2 - 29"
 let x_offset="x_screen/2 + 11"
 let y_offset="y_screen/2 + 64"
-# constants are for Linux Mint. May not be compatable with other distributions
 
-# Evaluate if POOL exists. If Not, POOL is created with hidden subdirectories
-if [ ! -d "POOL" ]; then
+if [ ! -d "POOL" ]; then ## This conditional will see if the Directory Pool exists. If not, it will create one named "POOL" and populate it with dummy files from $file_location
     mkdir POOL
-    mkdir POOL/.1 POOL/.2 POOL/.3 POOL/.4
-    touch POOL/.logs
-    echo DIRECTORIES CREATED
+    touch .multijack_logs
 fi
 
+remaining_files=`ls -l POOL | wc -l` ## $remaining_files is the number of files remaining in the Directory Pool due to how `wc -l` displays data
 
-# Number of files left in POOL is counted. Hidden directories are excluded
-remaining_files=`ls -l POOL | wc -l`
-
-# Number of files in POOL is compared to threshold. If below threshold, POOL is reset
-if [ "$remaining_files" -lt "$file_threshold" ]; then
-    let string_length="${#file_location} + 2"
-    for file_name in "$file_location"/*; do
-        pool_name=`echo "$file_name"| cut -c "$string_length"-`
-
-        touch "POOL/$pool_name"
+if [ "$remaining_files" -lt "$file_threshold" ]; then ## This conditional checks if the Directory Pool has fallen below the number set by $file_threshold ? 
+    let string_length="${#file_location} + 2" ## $string_length is the length of the string stored in $file_location + 2
+    rm -r POOL ## The Directory Pool is deleted and recreated
+    mkdir POOL
+    for file_name in "$file_location"/*; do ## This loop iterates through every file in $file_location and creates a blank file with the same filename in the Directory Pool
+        pool_name=`echo "$file_name"| cut -c "$string_length"-` ## $pool_name is the relative name of files in $file_location. The cut command is necessary to strip off the leading directory information.
+        touch "POOL/$pool_name" ## A file with the correct name i
     done
 fi
 
-# Reads head from subfolder and closes VLC with head name
-wmctrl -c "multijack_video_$1"
-pkill -f "multijack_video_$1" #necessary in Linux because of issuse with audio playing after video close. This has been necessary since the addition of the "-I dummy" args 
+wmctrl -c "multijack_video_$1" ## Closes a VLC window that corresponds to the argument that was passed ("1" for Top Left, etc)
+pkill -f "multijack_video_$1" ## necessary in Linux because of issuse with audio playing after video close. This has been necessary since the addition of the "-I dummy" args 
 
-
-# Random file popped from POOL and added to hidden subfolder
 next_file=`ls POOL | shuf -n 1`
-echo "$next_file" >> POOL/.logs
-touch "POOL/.$1/$next_file"
+echo "WINDOW_$1:`date`:$next_file" >> .multijack_logs ## records the video that was played, along with the window position and start time.
 rm "POOL/$next_file"
-#file can't be moved using mv as it will preserve original timestamp
 
-# 
-vlc --video-title="multijack_video_$1" "$file_location/$next_file" -I dummy & 
-echo "$file_location/$next_file"
+vlc --video-title="multijack_video_$1" "$file_location/$next_file" -I dummy & ## Creates a VLC video with a video title that corresponds to the argument passed to MultiJack
 
-until [ -n "$(wmctrl -l | grep "multijack_video_$1" 2>&1)" ] # this is the key line
+until [ -n "$(wmctrl -l | grep "multijack_video_$1" 2>&1)" ] ## This conditional will test if a window exists with the proper naming conventi
 do
-sleep 0.8
+sleep 1
 done
 
 case $1 in
@@ -124,5 +77,4 @@ case $1 in
         wmctrl -r "multijack_video_$1" -e 0,0,0,"$x_window","$y_window"
         ;;
 esac
-
 
