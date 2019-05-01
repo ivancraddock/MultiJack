@@ -25,8 +25,8 @@ case $1 in
         ;;
 esac
 
-x_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f1 -dx) ## These 2 lines set $x_screen and $y_screen equal to the corresponding pixel dimensions of the screen resolution.'
-y_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f2 -dx) ## ' 
+x_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f1 -dx) ## These 2 lines set $x_screen and $y_screen equal to the corresponding pixel dimensions of the screen resolution.
+y_screen=$(echo `xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/'` | cut -f2 -dx) ## 
 let x_window="x_screen/2 - 1" ## These 4 lines are used to calculate the size and screen-placement for the active VLC windows launched by MultiJack. The constants used are set for Linux Mint, and will ensure proper placement in Mint 19.1
 let y_window="y_screen/2 - 29"
 let x_offset="x_screen/2 + 11"
@@ -58,12 +58,12 @@ rm "POOL/$next_file"
 
 vlc --video-title="multijack_video_$1" "$file_location/$next_file" -I dummy & ## Creates a VLC video with a video title that corresponds to the argument passed to MultiJack
 
-until [ -n "$(wmctrl -l | grep "multijack_video_$1" 2>&1)" ] ## This conditional will test if a window exists with the proper naming conventi
+until [ -n "$(wmctrl -l | grep "multijack_video_$1" 2>&1)" ] ## This conditional will test if a window exists with the proper naming conventions. It will sleep the script until a window appears that matches these conventions.
 do
 sleep 1
 done
 
-case $1 in
+case $1 in ## Depending on args this block will resize the window and place it correctly for Linux
     "2")
         wmctrl -r "multijack_video_$1" -e 0,"$x_offset",0,"$x_window","$y_window"
         ;;
