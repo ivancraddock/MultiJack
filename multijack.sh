@@ -6,7 +6,7 @@
 # -- Identify if xdpyinfo is installed !? Display Error Message 
 # -- Record which videos are played in a log file. Include a timestamp and information on which arguments that MultiJack was passed
 
-file_location='/home/oem/Videos' ## $file_location is the directory that MultiJack will use to create and maintain it's Directory Pool. By default it is set to the default location for videos in Linux Mint
+file_location='/home/oem/Documents' ## $file_location is the directory that MultiJack will use to create and maintain it's Directory Pool. By default it is set to the default location for videos in Linux Mint
 file_threshold=10 ## $file_threshold is the minimum number of files in the Directory Pool. If the number of files in the Directory Pool drops below this number, the Directory Pool will be refreshed.
 
 case $1 in
@@ -37,7 +37,7 @@ if [ ! -d "POOL" ]; then ## This conditional will see if the Directory Pool exis
     touch .multijack_logs
 fi
 
-remaining_files=`ls -l POOL | wc -l` ## $remaining_files is the number of files remaining in the Directory Pool due to how `wc -l` displays data
+remaining_files=`ls POOL | wc -l` ## $remaining_files is the number of files remaining in the Directory Pool due to how `wc -l` displays data
 
 if [ "$remaining_files" -lt "$file_threshold" ]; then ## This conditional checks if the Directory Pool has fallen below the number set by $file_threshold ? 
     let string_length="${#file_location} + 2" ## $string_length is the length of the string stored in $file_location + 2
@@ -52,9 +52,12 @@ fi
 wmctrl -c "multijack_video_$1" ## Closes a VLC window that corresponds to the argument that was passed ("1" for Top Left, etc)
 pkill -f "multijack_video_$1" ## necessary in Linux because of issuse with audio playing after video close. This has been necessary since the addition of the "-I dummy" args 
 
-next_file=`ls POOL | shuf -n 1`
+#next_file=`ls POOL | shuf -n 1`  ## Deprecated to eliminate shuf
+let next_index="(($RANDOM%($remaining_files - 2)) + 2)" ## Testing out nested arethmatic statements in BASH
+next_file=`ls POOL | awk '{if(NR=='"$next_index"') print $0}'` ## Mixed single and double quotes were needed to make awk function with a variable as input. Selects the filename based on its random index
+
 echo "WINDOW_$1:`date`:$next_file" >> .multijack_logs ## records the video that was played, along with the window position and start time.
-rm "POOL/$next_file"
+rm "POOL/$next_file" ## removes the selected file from the POOL, thus preventing its reselection
 
 vlc --video-title="multijack_video_$1" "$file_location/$next_file" -I dummy & ## Creates a VLC video with a video title that corresponds to the argument passed to MultiJack
 
