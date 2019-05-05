@@ -6,6 +6,7 @@
 # -- Identify if xdpyinfo is installed !? Display Error Message 
 # -- Record which videos are played in a log file. Include a timestamp and information on which arguments that MultiJack was passed
 
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}"
 file_location='/home/oem/Documents' ## $file_location is the directory that MultiJack will use to create and maintain it's Directory Pool. By default it is set to the default location for videos in Linux Mint
 file_threshold=10 ## $file_threshold is the minimum number of files in the Directory Pool. If the number of files in the Directory Pool drops below this number, the Directory Pool will be refreshed.
 
@@ -17,7 +18,7 @@ case $1 in
         ;;  
 
     "--refresh") ## This option will delete the Directory Pool from the filesystem. When MultiJack will then recreate the Directory Pool the next time it is run with a standard argument (1-4)
-    rm -r POOL
+    rm -r "$CACHE_DIR/POOL"
     exit 1 
         ;;    
 
@@ -32,20 +33,20 @@ let y_window="y_screen/2 - 29"
 let x_offset="x_screen/2 + 11"
 let y_offset="y_screen/2 + 64"
 
-if [ ! -d "POOL" ]; then ## This conditional will see if the Directory Pool exists. If not, it will create one named "POOL" and populate it with dummy files from $file_location
-    mkdir POOL
-    touch .multijack_logs
+if [ ! -d "$CACHE_DIR/POOL" ]; then
+    mkdir "$CACHE_DIR/POOL"
+    touch "$CACHE_DIR/.multijack_logs"
 fi
 
-remaining_files=`ls POOL | wc -l` ## $remaining_files is the number of files remaining in the Directory Pool due to how `wc -l` displays data
+remaining_files=`ls "$CACHE_DIR/POOL" | wc -l` ## $remaining_files is the number of files remaining in the Directory Pool due to how `wc -l` displays data
 
 if [ "$remaining_files" -lt "$file_threshold" ]; then ## This conditional checks if the Directory Pool has fallen below the number set by $file_threshold ? 
     let string_length="${#file_location} + 2" ## $string_length is the length of the string stored in $file_location + 2
-    rm -r POOL ## The Directory Pool is deleted and recreated
-    mkdir POOL
+    rm -r "$CACHE_DIR/POOL" ## The Directory Pool is deleted and recreated
+    mkdir "$CACHE_DIR/POOL"
     for file_name in "$file_location"/*; do ## This loop iterates through every file in $file_location and creates a blank file with the same filename in the Directory Pool
         pool_name=`echo "$file_name"| cut -c "$string_length"-` ## $pool_name is the relative name of files in $file_location. The cut command is necessary to strip off the leading directory information.
-        touch "POOL/$pool_name" ## A file with the correct name i
+        touch "$CACHE_DIR/POOL/$pool_name" ## A file with the correct name i
     done
 fi
 
@@ -54,10 +55,10 @@ pkill -f "multijack_video_$1" ## necessary in Linux because of issuse with audio
 
 #next_file=`ls POOL | shuf -n 1`  ## Deprecated to eliminate shuf
 let next_index="(($RANDOM%($remaining_files - 2)) + 2)" ## Testing out nested arethmatic statements in BASH
-next_file=`ls POOL | awk '{if(NR=='"$next_index"') print $0}'` ## Mixed single and double quotes were needed to make awk function with a variable as input. Selects the filename based on its random index
+next_file=`ls "$CACHE_DIR/POOL" | awk '{if(NR=='"$next_index"') print $0}'` ## Mixed single and double quotes were needed to make awk function with a variable as input. Selects the filename based on its random index
 
-echo "WINDOW_$1:`date`:$next_file" >> .multijack_logs ## records the video that was played, along with the window position and start time.
-rm "POOL/$next_file" ## removes the selected file from the POOL, thus preventing its reselection
+echo "WINDOW_$1:`date`:$next_file" >> .multijack_logs ## records the video that was played, aloncd g with the window position and start time.
+rm "$CACHE_DIR/POOL/$next_file" ## removes the selected file from the POOL, thus preventing its reselection
 
 vlc --video-title="multijack_video_$1" "$file_location/$next_file" -I dummy & ## Creates a VLC video with a video title that corresponds to the argument passed to MultiJack
 
