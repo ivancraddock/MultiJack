@@ -6,9 +6,15 @@
 # -- Identify if xdpyinfo is installed !? Display Error Message 
 # -- Record which videos are played in a log file. Include a timestamp and information on which arguments that MultiJack was passed
 
+until [ -z "$MULTIJACK_ENV" ]; do
+    sleep 0.5
+done
+## env MULTIJACK_ENV="TRUE"
+
+
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}"
-file_location='/home/oem/Documents' ## $file_location is the directory that MultiJack will use to create and maintain it's Directory Pool. By default it is set to the default location for videos in Linux Mint
-file_threshold=10 ## $file_threshold is the minimum number of files in the Directory Pool. If the number of files in the Directory Pool drops below this number, the Directory Pool will be refreshed.
+file_location='/home/oem/Documents' ## $file_location is the directory that MultiJack will use to create and maintain it's Directory .POOL. By default it is set to the default location for videos in Linux Mint
+file_threshold=10 ## $file_threshold is the minimum number of files in the Directory .POOL. If the number of files in the Directory .POOL drops below this number, the Directory .POOL will be refreshed.
 
 case $1 in
 
@@ -17,8 +23,8 @@ case $1 in
     exit 1
         ;;  
 
-    "--refresh") ## This option will delete the Directory Pool from the filesystem. When MultiJack will then recreate the Directory Pool the next time it is run with a standard argument (1-4)
-    rm -r "$CACHE_DIR/POOL"
+    "--refresh") ## This option will delete the Directory .POOL from the filesystem. When MultiJack will then recreate the Directory .POOL the next time it is run with a standard argument (1-4)
+    rm -r "$CACHE_DIR/.POOL"
     exit 1 
         ;;    
 
@@ -33,38 +39,38 @@ let y_window="y_screen/2 - 29"
 let x_offset="x_screen/2 + 11"
 let y_offset="y_screen/2 + 64"
 
-if [ ! -d "$CACHE_DIR/POOL" ]; then
-    mkdir "$CACHE_DIR/POOL"
+if [ ! -f "$CACHE_DIR/.POOL" ]; then
+    touch "$CACHE_DIR/.POOL"
     touch "$CACHE_DIR/.multijack_logs"
 fi
 
-remaining_files=`ls "$CACHE_DIR/POOL" | wc -l` ## $remaining_files is the number of files remaining in the Directory Pool due to how `wc -l` displays data
+remaining_files=`wc -l $CACHE_DIR/.POOL | cut -d " " -f1` 
 
-if [ "$remaining_files" -lt "$file_threshold" ]; then ## This conditional checks if the Directory Pool has fallen below the number set by $file_threshold ? 
+if [ "$remaining_files" -lt "$file_threshold" ]; then ## This conditional checks if the Directory .POOL has fallen below the number set by $file_threshold ? 
     let string_length="${#file_location} + 2" ## $string_length is the length of the string stored in $file_location + 2
-    rm -r "$CACHE_DIR/POOL" ## The Directory Pool is deleted and recreated
-    mkdir "$CACHE_DIR/POOL"
-    for file_name in "$file_location"/*; do ## This loop iterates through every file in $file_location and creates a blank file with the same filename in the Directory Pool
-        pool_name=`echo "$file_name"| cut -c "$string_length"-` ## $pool_name is the relative name of files in $file_location. The cut command is necessary to strip off the leading directory information.
-        touch "$CACHE_DIR/POOL/$pool_name" ## A file with the correct name i
+    rm "$CACHE_DIR/.POOL" ## The Directory .POOL is deleted and recreated
+    touch "$CACHE_DIR/.POOL"
+    for file_name in "$file_location"/*; do ## This loop iterates through every file in $file_location and creates a blank file with the same filename in the Directory .POOL
+        `echo "$file_name"| cut -c "$string_length"- >> $CACHE_DIR/.POOL` ## $.POOL_name is the relative name of files in $file_location. The cut command is necessary to strip off the leading directory information.
     done
-fi
+fi 
+
+remaining_files=`wc -l $CACHE_DIR/.POOL | cut -d " " -f1`
 
 wmctrl -c "multijack_video_$1" ## Closes a VLC window that corresponds to the argument that was passed ("1" for Top Left, etc)
 pkill -f "multijack_video_$1" ## necessary in Linux because of issuse with audio playing after video close. This has been necessary since the addition of the "-I dummy" args 
 
-#next_file=`ls POOL | shuf -n 1`  ## Deprecated to eliminate shuf
-let next_index="(($RANDOM%($remaining_files - 2)) + 2)" ## Testing out nested arethmatic statements in BASH
-next_file=`ls "$CACHE_DIR/POOL" | awk '{if(NR=='"$next_index"') print $0}'` ## Mixed single and double quotes were needed to make awk function with a variable as input. Selects the filename based on its random index
+#next_file=`ls .POOL | shuf -n 1`  ## Deprecated to eliminate shuf
+let next_index="$RANDOM%$remaining_files" ## Testing out nested arethmatic statements in BASH
+next_file=`awk '{if(NR=='"$next_index"') print $0}' $CACHE_DIR/.POOL` ## Mixed single and double quotes were needed to make awk function with a variable as input. Selects the filename based on its random index
 
-echo "WINDOW_$1:`date`:$next_file" >> .multijack_logs ## records the video that was played, aloncd g with the window position and start time.
-rm "$CACHE_DIR/POOL/$next_file" ## removes the selected file from the POOL, thus preventing its reselection
+echo "WINDOW_$1:`date`:$next_file" >> "$CACHE_DIR/.multijack_logs" ## records the video that was played, aloncd g with the window position and start time.
+sed -i "$next_index""d" ./file
 
 vlc --video-title="multijack_video_$1" "$file_location/$next_file" -I dummy & ## Creates a VLC video with a video title that corresponds to the argument passed to MultiJack
 
-until [ -n "$(wmctrl -l | grep "multijack_video_$1" 2>&1)" ] ## This conditional will test if a window exists with the proper naming conventions. It will sleep the script until a window appears that matches these conventions.
-do
-sleep 1
+until [ -n "$(wmctrl -l | grep "multijack_video_$1" 2>&1)" ]; do ## This conditional will test if a window exists with the proper naming conventions. It will sleep the script until a window appears that matches these conventions.
+    sleep 0.5
 done
 
 case $1 in ## Depending on args this block will resize the window and place it correctly for Linux
